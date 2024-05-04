@@ -7,6 +7,8 @@ from rl import utils
 from models.ppo import MultiAgentPPO
 from models.networks import ExpertNetwork
 
+os.environ["CUBLAS_WORKSPACE_CONFIG"]=":16:8"
+
 from env.scenarios import *
 from models.agent import DLAgent
 from models.env import Env
@@ -20,7 +22,7 @@ parser.add_argument("--log_dir", type=str, default=None)
 parser.add_argument("--device", type=str, default=None)
 parser.add_argument("--rank", type=int, default=None)
 parser.add_argument("--master_addr", type=str, default="127.0.0.1")
-parser.add_argument("--master_port", type=str, default="29501")
+parser.add_argument("--master_port", type=str, default="27015")
 parser.add_argument("--workers", type=int, default=1)
 settings = parser.parse_args()
 
@@ -102,9 +104,9 @@ def train(seed, rank, hooks=[]):
             s = env.reset()
         else:
             s = s_
-        a, *args = agent.act(s, True)
+        a, *args = agent.act(s, True) # action from agent policy
         
-        act = [ag.act(ac, env) for ag, ac in zip(env.agents, a)]
+        act = [ag.act(ac, env) for ag, ac in zip(env.agents, a)] # rotate velocity and tuning for using in env
         s_, r, done, info = env.step(act)
         agent.store(s, a, r, s_, done, info, *args)
 

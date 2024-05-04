@@ -40,9 +40,9 @@ class MultiAgentPPO(PPO):
                 a, v, lp = None, None, None
             else:
                 with torch.no_grad():
-                    pi, v = self(s)
-                    a = pi.sample() if stochastic or (stochastic is None and self.training) else pi.mean
-                    lp = pi.log_prob(a).sum()
+                    pi, v = self(s) # input state into actor-network and critic-network
+                    a = pi.sample() if stochastic or (stochastic is None and self.training) else pi.mean # action
+                    lp = pi.log_prob(a).sum() # log prob of action
             
                 a = a.cpu().numpy()
                 v, lp = v.item(), lp.item()

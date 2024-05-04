@@ -4,6 +4,8 @@ import numpy
 import torch
 from rl import utils
 
+os.environ["CUBLAS_WORKSPACE_CONFIG"]=":16:8"
+
 import config
 import data
 from models.networks import ExpertNetwork

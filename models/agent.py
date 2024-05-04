@@ -17,11 +17,11 @@ class DLAgent(BaseAgent):
         self.expert_ob = self.expert_ob_
         
         dpx, dpy = self.goal.x-self.position.x, self.goal.y-self.position.y
-        dist = (dpx*dpx+dpy*dpy)**0.5
+        dist = (dpx*dpx+dpy*dpy)**0.5 ## find distance to goal
         
         n = []
-        for neighbor in env.agents:
-            if not self.observable(neighbor): continue
+        for neighbor in env.agents: ## add observable neighbor to agent's state
+            if not self.observable(neighbor): continue ## check if that agent is neighbor or not
             n.extend([
                 neighbor.position.x - self.position.x,
                 neighbor.position.y - self.position.y,
@@ -29,6 +29,14 @@ class DLAgent(BaseAgent):
                 neighbor.velocity.y - self.velocity.y
             ])
         
+        ######### Add wall observation into neighbor ########
+        if env.scenario.has_wall:
+            wall_obs = env.scenario.nearest_wall(self)
+
+            if wall_obs:
+                n.extend(wall_obs)
+
+
         if self.expert:            
             self.expert_ob_ = [
                 dpx, dpy,
@@ -43,7 +51,7 @@ class DLAgent(BaseAgent):
             [c, -s],
             [s,  c]
         ])
-        if n: n = (R @ numpy.array(n).reshape(-1, 2, 1)).reshape(-1).tolist()
+        if n: n = (R @ numpy.array(n).reshape(-1, 2, 1)).reshape(-1).tolist() ## rotate to goal
         v = R @ [self.velocity.x, self.velocity.y]
         if dist > self.observe_radius: dist = self.observe_radius
         ob = [

@@ -1,7 +1,7 @@
 # expert training
 EXPERT_LR = 3e-4
 EXPERT_BATCH_SIZE = 64
-EXPERT_EPOCHS = 500
+EXPERT_EPOCHS = 5
 
 
 # reinforcement learning

@@ -17,6 +17,19 @@ class BaseScenario():
         self.rng = numpy.random.RandomState()
         self.seed(seed)
 
+        self.wall = [dict(start_point = (7,2), end_point =(10,1),wall_type='rec',velocity=(0,0),thickness=0)]
+        self.has_wall = False
+        ## wall should be dict of component to build rectangle wall,
+        ## it consists of start_point (s:top-left) and end_point (e:bottom-right)
+        ## thickness is only inside wall
+        ## EXAMPLE: wall = dict(start_point = (7,2), end_point =(10,1))
+        #############################
+        #...........................#
+        #.......swww................#
+        #.......wwwe................#
+        #...........................#
+        #############################
+
     def spawn(self):
         raise NotImplementedError
 
@@ -29,6 +42,49 @@ class BaseScenario():
             dist2 = (agent0.position.x-agent1.position.x)**2 + (agent0.position.y-agent1.position.y)**2
             return dist2 <= (agent0.radius+agent1.radius)**2
         return False
+    
+    def wall_collide(self, agent: BaseAgent):
+        if agent.visible:
+            for w in self.wall:
+                if w['wall_type'] == 'rectangle':
+                    x_min = w['start_point'][0]
+                    y_min = w['end_point'][1]
+                    x_max = w['end_point'][0]
+                    y_max = w['start_point'][1]
+                    
+                    dx = self.find_closet_rec_point(agent.position.x,x_min,x_max,w['thickness']) - agent.position.x
+                    dy = self.find_closet_rec_point(agent.position.y,y_min,y_max,w['thickness']) - agent.position.y
+                    dist2wall = (dx**2 + dy**2)**0.5
+                    if dist2wall <= agent.radius:
+                        return True
+        return False
+
+    def nearest_wall(self,agent: BaseAgent):
+        n = []
+        if agent.visible:
+            for w in self.wall:
+                if w['wall_type'] == 'rectangle':
+                    x_min = w['start_point'][0]
+                    y_min = w['end_point'][1]
+                    x_max = w['end_point'][0]
+                    y_max = w['start_point'][1]
+
+                    dx = self.find_closet_rec_point(agent.position.x,x_min,x_max,w['thickness']) - agent.position.x
+                    dy = self.find_closet_rec_point(agent.position.y,y_min,y_max,w['thickness']) - agent.position.y
+                    vx = w['velocity'][0] - agent.velocity.x
+                    vy = w['velocity'][1] - agent.velocity.y
+                    if (dx**2 + dy**2) <= agent.observe_radius*agent.observe_radius:
+                        n.extend(dx,dy,vx,vy)
+        return n
+
+    def find_closet_rec_point(self, p,min,max,in_offset=0):
+        if p < min:
+            nearest_p = min
+        elif p> max:
+            nearest_p = max
+        else:
+            nearest_p = min+in_offset if p - min < max - p else max-in_offset
+        return nearest_p
 
     def placeable(self, agent: BaseAgent):
         for o in self.agents:
@@ -225,6 +281,23 @@ class SquareCrossingScenario(BaseScenario):
         agent.radius = r
         return agent
 
+
+########### Add Wall scenario ############
+class DummyWallScenario(SquareCrossingScenario):
+    def __init__(self, wall=None,wall_type='rectangle',**kwargs):
+        super().__init__(**kwargs)
+        
+        self.wall = wall
+        self.wall_type = wall_type
+        ## wall should be dict of component to build rectangle wall,
+        ## it consists of start_point (s:top-left) and end_point (e:bottom-right)
+        ## EXAMPLE: wall = dict(start_point = (7,2), end_point =(10,1))
+        #############################
+        #...........................#
+        #.......swww................#
+        #.......wwwe................#
+        #...........................#
+        #############################
 
 
 class PredefinedScenario(BaseScenario):
