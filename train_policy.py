@@ -99,8 +99,11 @@ def train(seed, rank, hooks=[]):
     done = True
     if settings.workers > 0:
         print("Worker {} starts work.".format(rank))
+    episode = 0
     while not agent.requests_quit:
         if done:
+            print(f"episode:{episode}, {agent.samples.item()} / {agent.max_samples}")
+            episode+=1
             s = env.reset()
         else:
             s = s_
@@ -111,13 +114,14 @@ def train(seed, rank, hooks=[]):
         agent.store(s, a, r, s_, done, info, *args)
 
         if agent.needs_update():
+            print('update policy...')
             agent.train()
             agent.update()
             agent.eval()
 
 def evaluate(
     seed: int = None,
-    trials: int = 10,
+    trials: int = 2,
     child_processes: Sequence[multiprocessing.context.Process] = None,
     timeout: int = 3600,
     keep_best_checkpoint: bool = True
@@ -137,6 +141,7 @@ def evaluate(
     avg_reward, speed = [], []
     while True:
         if tries < 0:
+            
             last_response_time = time.time()
             ckpt = None
             while not finished:
@@ -145,21 +150,30 @@ def evaluate(
                         ckpt = torch.load(agent.checkpoint_file, map_location=agent.device)
                     except Exception as e:
                         print("Evaluator Error: ", e)
+                    
                     if ckpt:
                         agent.load_state_dict(ckpt)
                         step = agent.global_step.item()
+                        # print('Struck here???',step)
                         if step <= global_step:
                             ckpt = None
                         else:
+                            print('BREK WHY!!!')
                             global_step = step
                             break
                 finished = False
                 if child_processes:
+                    if not all(p.is_alive() for p in child_processes):
+                        print('All ChildProcesses has ended...')
                     finished = not all(p.is_alive() for p in child_processes)
                 if not finished and timeout and timeout > 0:
+                    if time.time() - last_response_time > timeout:
+                        print('Timed out...')
                     finished = time.time() - last_response_time > timeout
-                if not finished: time.sleep(30)
-            if finished: break
+                if not finished: time.sleep(3)
+            if finished:
+                print('Finished Evaluation')
+                break
             tries = 0
             utils.env_seed(env, seed)
 
@@ -178,9 +192,10 @@ def evaluate(
                 reward[idx].append(r)
                 speed.append((ag.velocity.x**2 + ag.velocity.y**2)**0.5)
                 lifetime += 1
-                
+        print('evaluating...')        
         tries += done
         if done:
+            print(f'tries:{tries} / {trials}')
             arrived += len(info["arrived_agents"])
             collided += len(info["collided_agents"])
             total += len(env.agents)
@@ -215,12 +230,13 @@ def evaluate(
             total, lifetime, arrived, collided = 0, 0, 0, 0
             avg_reward, speed = [], []
             tries = -1
-
+            # print('WHY!!!',agent.global_step.item())
             cache_id = int(samples) // int(5e6)
             if cache_id:
                 cache_file = agent.checkpoint_file+"-{}".format(cache_id)
                 if not os.path.exists(cache_file):
                     torch.save(ckpt, cache_file)
+    # print('Leave Loop')
 
 if __name__ == "__main__":
     if settings.workers > 1:
@@ -235,7 +251,9 @@ if __name__ == "__main__":
             ), kwargs=dict(master_addr=settings.master_addr, master_port=settings.master_port))
             p.start()
             processes.append(p)
+            print('start evaluation.....')
             evaluate(seed=1+settings.workers, child_processes=processes)
+            print('end.....')
         else:
             distributed(
                 partial(train, seed=1+settings.rank, rank=settings.rank, hooks=[DistributedSyncHook]),
@@ -249,3 +267,4 @@ if __name__ == "__main__":
         p.start()
         processes.append(p)
         evaluate(seed=1+settings.workers, child_processes=processes)
+        print('end.....')

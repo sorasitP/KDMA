@@ -187,7 +187,13 @@ class DecentralizedMultiAgentEnv():
             fig = self.figure.figure
             ax = self.figure.axes
 
+
         fig.canvas.flush_events()
+
+        '''render wall'''
+        if self.scenario.has_wall:
+            self.scenario.visualize(fig,ax)
+
 
         if len(self.markers) < len(self.agents):
             n = len(self.agents) - len(self.markers)

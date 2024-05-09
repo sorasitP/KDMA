@@ -9,7 +9,8 @@ __all__ = [
     "SquareCrossingScenario",
 
     "CircleCrossing6Scenario",
-    "CircleCrossing12Scenario"
+    "CircleCrossing12Scenario",
+    "StaticWallScenario"
 ]
 
 class BaseScenario():
@@ -17,8 +18,10 @@ class BaseScenario():
         self.rng = numpy.random.RandomState()
         self.seed(seed)
 
-        self.wall = [dict(start_point = (7,2), end_point =(10,1),wall_type='rec',velocity=(0,0),thickness=0)]
+        self.wall = [dict(start_point = (7,2), end_point =(10,1),wall_type='rectangle',velocity=(0,0),thickness=0),
+                     dict(start_point = (7,2), radius=5,wall_type='circle',velocity=(0,0),thickness=0)]
         self.has_wall = False
+        self.dynamic = False
         ## wall should be dict of component to build rectangle wall,
         ## it consists of start_point (s:top-left) and end_point (e:bottom-right)
         ## thickness is only inside wall
@@ -45,17 +48,34 @@ class BaseScenario():
     
     def wall_collide(self, agent: BaseAgent):
         if agent.visible:
-            for w in self.wall:
+            for w in self.wall:    
                 if w['wall_type'] == 'rectangle':
                     x_min = w['start_point'][0]
                     y_min = w['end_point'][1]
                     x_max = w['end_point'][0]
                     y_max = w['start_point'][1]
+                    list_dxy = self.find_closet_rec_point((agent.position.x,agent.position.y),(x_min,y_min),(x_max,y_max),w['thickness'])
                     
-                    dx = self.find_closet_rec_point(agent.position.x,x_min,x_max,w['thickness']) - agent.position.x
-                    dy = self.find_closet_rec_point(agent.position.y,y_min,y_max,w['thickness']) - agent.position.y
-                    dist2wall = (dx**2 + dy**2)**0.5
-                    if dist2wall <= agent.radius:
+                    for (dx,dy) in list_dxy:
+                        if (dx**2 + dy**2) <= agent.radius*agent.radius:
+                            return True
+                elif w['wall_type'] == 'circle':
+                    center_x = w['start_point'][0]
+                    center_y = w['start_point'][1]
+                    circle_r = w['radius']
+                    v2c_x = center_x - agent.position.x
+                    v2c_y = center_y - agent.position.y
+                    dist2c = (v2c_x**2 + v2c_y**2)**0.5
+                    if dist2c < circle_r-w['thickness']:
+                        dist2r = dist2c - (circle_r-w['thickness'])
+                    elif dist2c >= circle_r:
+                        dist2r = dist2c - circle_r
+                    else:
+                        dist2r = 0
+                    dx = v2c_x/dist2c * dist2r
+                    dy = v2c_y/dist2c * dist2r
+                    
+                    if (dx**2 + dy**2) <= agent.radius*agent.radius:
                         return True
         return False
 
@@ -68,23 +88,65 @@ class BaseScenario():
                     y_min = w['end_point'][1]
                     x_max = w['end_point'][0]
                     y_max = w['start_point'][1]
-
-                    dx = self.find_closet_rec_point(agent.position.x,x_min,x_max,w['thickness']) - agent.position.x
-                    dy = self.find_closet_rec_point(agent.position.y,y_min,y_max,w['thickness']) - agent.position.y
+                    
                     vx = w['velocity'][0] - agent.velocity.x
                     vy = w['velocity'][1] - agent.velocity.y
+                    list_dxy = self.find_closet_rec_point((agent.position.x,agent.position.y),(x_min,y_min),(x_max,y_max),w['thickness'])                
+                    for (dx,dy) in list_dxy:
+                        if (dx**2 + dy**2) <= agent.observe_radius*agent.observe_radius:
+                            n.extend([dx,dy,vx,vy])                    
+                elif w['wall_type'] == 'circle':
+                    center_x = w['start_point'][0]
+                    center_y = w['start_point'][1]
+                    circle_r = w['radius']
+                    v2c_x = center_x - agent.position.x
+                    v2c_y = center_y - agent.position.y
+                    dist2c = (v2c_x**2 + v2c_y**2)**0.5
+                    if dist2c < circle_r-w['thickness']:
+                        dist2r = dist2c - (circle_r-w['thickness'])
+                    elif dist2c >= circle_r:
+                        dist2r = dist2c - circle_r
+                    else:
+                        dist2r = 0
+                    dx = v2c_x/dist2c * dist2r
+                    dy = v2c_y/dist2c * dist2r
+                    
                     if (dx**2 + dy**2) <= agent.observe_radius*agent.observe_radius:
-                        n.extend(dx,dy,vx,vy)
+                        vx = w['velocity'][0] - agent.velocity.x
+                        vy = w['velocity'][1] - agent.velocity.y
+                        n.extend([dx,dy,vx,vy]) 
+                        
         return n
 
-    def find_closet_rec_point(self, p,min,max,in_offset=0):
-        if p < min:
-            nearest_p = min
-        elif p> max:
-            nearest_p = max
-        else:
-            nearest_p = min+in_offset if p - min < max - p else max-in_offset
-        return nearest_p
+    def find_closet_rec_point(self, agent_pos,rec_min,rec_max,thickness=0):
+        def nearest_point(p,min,max,in_offset):
+            if p < min:
+                nearest_p = min
+            elif p> max:
+                nearest_p = max
+            else:
+                nearest_p = min+in_offset if p - min < max - p else max-in_offset
+                return nearest_p, True
+            return nearest_p, False
+
+        wall_x, in_x = nearest_point(agent_pos[0],rec_min[0],rec_max[0],thickness)
+        wall_y, in_y = nearest_point(agent_pos[1],rec_min[1],rec_max[1],thickness)
+        dx = wall_x - agent_pos[0]
+        dy = wall_y - agent_pos[1]
+        if in_x and in_y:
+            if abs(dx)<= thickness or abs(dy)<= thickness:
+                return [(0,0)]
+            if abs(dx) == abs(dy):
+                return [(dx,0),(0,dy)]
+            elif abs(dx) < abs(dy):
+                dy =0
+            else:
+                dx =0
+        elif in_x:
+            dx = 0
+        elif in_y:
+            dy = 0
+        return [(dx,dy)]
 
     def placeable(self, agent: BaseAgent):
         for o in self.agents:
@@ -384,3 +446,137 @@ class CircleCrossing12Scenario(PredefinedScenario):
     ):
         super().__init__(agent_wrapper, scale)
         
+########### Add Wall scenario ############
+class StaticWallScenario(BaseScenario):
+    def __init__(self,
+        n_agents: int or Tuple[int, int],
+        width: float or Tuple[float, float],
+        height: float or Tuple[float, float],
+        vertical: bool,
+        horizontal: bool,
+        agent_wrapper: Callable[[], BaseAgent],
+        wall: list,
+        noise: float = 0,
+        min_distance: float = 0,
+        seed: int = None,
+    ):
+        
+        ## wall should be dict of component to build rectangle wall,
+        ## it consists of start_point (s:top-left) and end_point (e:bottom-right)
+        ## EXAMPLE: wall = dict(start_point = (7,2), end_point =(10,1))
+        #############################
+        #...........................#
+        #.......swww................#
+        #.......wwwe................#
+        #...........................#
+        #############################
+
+        self.n_agents = n_agents
+        self.width = width
+        self.height = height
+        self.vertical = vertical
+        self.horizontal = horizontal
+        self.agent_wrapper = agent_wrapper
+        self.min_distance = min_distance
+        super().__init__(seed)
+
+        self.has_wall = True
+        self.dynamic = False
+        self.wall = wall
+
+    def __iter__(self):
+        if hasattr(self.n_agents, "__len__"):
+            self._n_agents = self.rng.randint(self.n_agents[0], self.n_agents[1])
+        else:
+            self._n_agents = self.n_agents
+        if hasattr(self.width, "__len__"):
+            self._width = self.rng.random()*(self.width[1]-self.width[0]) + self.width[0]
+        else:
+            self._width = self.width
+        if hasattr(self.height, "__len__"):
+            self._height = self.rng.random()*(self.height[1]-self.height[0]) + self.height[0]
+        else:
+            self._height = self.height
+        self.goals = []
+        self.has_wall = True
+        return super().__iter__()
+    
+
+    def spawn(self):
+        if self.counter >= self._n_agents:
+            raise StopIteration
+
+        agent = self.agent_wrapper()
+        r = agent.radius
+        agent.radius += self.min_distance
+        r2 = agent.radius*agent.radius
+
+        if self.vertical and self.horizontal:
+            vertical = self.rng.random() > 0.5
+        else:
+            vertical = self.vertical
+        while True:
+            if vertical:
+                x = self.rng.random()-0.5
+                if self.horizontal: x *= 0.5
+                y = (self.rng.random()-0.5) * 0.5 # (-0.25, 0.25)
+                if y < 0:
+                    y -= 0.25
+                else:
+                    y += 0.25
+            else:
+                x = (self.rng.random()-0.5) * 0.5
+                if x < 0:
+                    x -= 0.25
+                else:
+                    x += 0.25
+                y = self.rng.random()-0.5
+                if self.vertical: y *= 0.5
+            agent.position = x * self._width, y * self._height
+            if self.placeable(agent): break
+        while True:
+            if vertical:
+                x = self.rng.random()-0.5
+                if self.horizontal: x *= 0.5
+                y = (self.rng.random()-0.5) * 0.5 # (-0.25, 0.25)
+                if y < 0:
+                    y -= 0.25
+                else:
+                    y += 0.25
+                if ((agent.position.y > 0 and y > 0) or (agent.position.y < 0 and y < 0)):
+                    y = -y
+            else:
+                x = (self.rng.random()-0.5) * 0.5
+                if x < 0:
+                    x -= 0.25
+                else:
+                    x += 0.25
+                if (agent.position.x > 0 and x > 0) or (agent.position.x < 0 and x < 0):
+                    x = -x
+                y = self.rng.random()-0.5
+                if self.vertical: y *= 0.5
+            x *= self._width
+            y *= self._height
+            if (agent.position.x-x)**2 + (agent.position.y-y)**2 <= r2:
+                continue
+            placeable = True
+            for gx, gy in self.goals:
+                if (gx-x)**2 + (gy-y)**2 <= r2:
+                    placeable = False
+                    break
+            if placeable:
+                agent.goal = x, y
+                break
+        self.goals.append((agent.goal.x, agent.goal.y))
+        agent.radius = r
+        return agent
+    
+    def visualize(self,fig,ax):
+        import matplotlib.pyplot as plt
+
+        # fig = fig
+        # ax = ax
+        for w in self.wall:
+            x1 = numpy.array([w['start_point'][0],w['start_point'][0],w['end_point'][0],w['end_point'][0],w['start_point'][0]])
+            y1 = numpy.array([w['end_point'][1],w['start_point'][1],w['start_point'][1],w['end_point'][1],w['end_point'][1]])
+            ax.plot(x1, y1,'r-')

@@ -181,10 +181,12 @@ class ActorCritic(Agent):
         
     def update(self):
         if self.optimizers["sample_counter"]:
+            # if self.samples.grad is not None:
             self.samples.grad.add_(len(self.buffer)-self._last_buffer_size)
         for h in self.hooks: h.before_update(self)
         vf_loss, pg_loss, entropy = self._update()
         if self.optimizers["sample_counter"]:
+            # if self.samples.grad is not None:
             self.step_opt(self.optimizers["sample_counter"])
             self.optimizers["sample_counter"].zero_grad()
         for h in self.hooks: h.after_update(self)
