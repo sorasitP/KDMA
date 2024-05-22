@@ -1,4 +1,4 @@
-# Multi-Agent Navigation in Obstacle Environment using Knowledge Distillation 
+# Multi-Agent Navigation using Knowledge Distillation in Obstacle Environment
 
 This is project of deep reinforcement learning class in KMUTT university, this project inspired multi-agent navigation framework from this paper **Human-Inspired Multi-Agent Navigation using Knowledge Distillation**. [[arXiv](https://arxiv.org/abs/2103.10000)][[Youtube](https://youtu.be/tMctyEw8kRI)]. We try to add obstacles into multi-agent environment by adding the obstacle observation in agent's state which using same layer as neighbor observation in neural network policy.
 
@@ -17,8 +17,8 @@ In this part we show just about how we add obstacle observation into agent's sta
 
 ### Obstacle Observation
 We have 2 types of Obstacle Observation (You can select each type by changing parameter in **config.py**)
--   Only nearest obstacle point where we input only the nearest point of each obstacle into agent's state. (To use this type, change <span style="color: blue;">ONLY_NEAREST=True</span>)
--   Obstacle points around the agent where we input desired number of obstacle points around agent into agent's state. (To use this type, change <span style="color: blue;">ONLY_NEAREST=False</span> and specify the desired number of points <span style="color: blue;">OBSEREVD_POINTS=60</span> **Maximum is 360**)
+-   Only nearest obstacle point where we input only the nearest point of each obstacle into agent's state. (To use this type, change $${\color{lightblue}Light \space ONLY_NEAREST=True}$$)
+-   Obstacle points around the agent where we input desired number of obstacle points around agent into agent's state. (To use this type, change $${\color{lightblue}Light \space ONLY_NEAREST=False}$$ and specify the desired number of points $${\color{lightblue}Light \space OBSEREVD_POINTS=60}$$ **Maximum is 360**)
 
 
 ## Citation
