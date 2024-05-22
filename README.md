@@ -17,8 +17,8 @@ In this part we show just about how we add obstacle observation into agent's sta
 
 ### Obstacle Observation
 We have 2 types of Obstacle Observation (You can select each type by changing parameter in **config.py**)
--   Only nearest obstacle point where we input only the nearest point of each obstacle into agent's state. (To use this type, change $${\color{lightblue}Light \space ONLY_NEAREST=True}$$)
--   Obstacle points around the agent where we input desired number of obstacle points around agent into agent's state. (To use this type, change $${\color{lightblue}Light \space ONLY_NEAREST=False}$$ and specify the desired number of points $${\color{lightblue}Light \space OBSEREVD_POINTS=60}$$ **Maximum is 360**)
+-   Only nearest obstacle point where we input only the nearest point of each obstacle into agent's state. (To use this type, change <code style="color : aqua">ONLY_NEAREST=True</code>)
+-   Obstacle points around the agent where we input desired number of obstacle points around agent into agent's state. (To use this type, change <code style="color : aqua">ONLY_NEAREST=False</code> and specify the desired number of points <code style="color : aqua">OBSEREVD_POINTS=60</code> **Maximum is 360**)
 
 
 ## Citation
