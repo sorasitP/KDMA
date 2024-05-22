@@ -4,6 +4,7 @@ import torch
 
 from env.agents.base_agent import BaseAgent
 from .networks import Policy
+from ..config import ONLY_NEAREST,OBSERVED_POINTS
 
 class DLAgent(BaseAgent):
 
@@ -31,14 +32,16 @@ class DLAgent(BaseAgent):
         
         ######### Add wall observation into neighbor ########
         if env.scenario.has_wall:
-            wall_obs, theta_list = env.scenario.search_360_wall(self)
-            if wall_obs:
-                n.extend(numpy.array(wall_obs).flatten().tolist())
 
-            # wall_obs = env.scenario.nearest_wall(self)
+            if ONLY_NEAREST:
+                wall_obs = env.scenario.nearest_wall(self)
 
-            # if wall_obs:
-            #     n.extend(wall_obs)
+                if wall_obs:
+                    n.extend(wall_obs)
+            else:
+                wall_obs, theta_list = env.scenario.search_360_wall(self,OBSERVED_POINTS)
+                if wall_obs:
+                    n.extend(numpy.array(wall_obs).flatten().tolist())
 
         if self.expert:            
             self.expert_ob_ = [

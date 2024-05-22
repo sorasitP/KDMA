@@ -78,14 +78,14 @@ class BaseScenario():
                         return True
         return False
 
-    def search_360_wall(self,agent: BaseAgent):
+    def search_360_wall(self,agent: BaseAgent, points: int=60):
         wall_list = []
         theta_list = []
         if agent.visible:
             r = agent.radius
             ob_r = agent.observe_radius
             agent_p = (agent.position.x,agent.position.y)
-            for degree in range(0,360,6): # loop for 360 degree
+            for degree in range(0,360,360//points): # loop for 360 degree
                 theta  = math.pi/180 * degree
                 ## find the point with that degree
                 p_x = (r * math.cos(theta)) + agent_p[0]
@@ -623,9 +623,9 @@ class StaticWallScenario(BaseScenario):
     def visualize(self,fig,ax):
         import matplotlib.pyplot as plt
 
-        fig = fig
-        ax = ax
+        # fig = fig
+        # ax = ax
         for w in self.wall:
             x1 = numpy.array([w['start_point'][0],w['start_point'][0],w['end_point'][0],w['end_point'][0],w['start_point'][0]])
             y1 = numpy.array([w['end_point'][1],w['start_point'][1],w['start_point'][1],w['end_point'][1],w['end_point'][1]])
-            plt.plot(x1, y1,'r-')
+            ax.plot(x1, y1,'r-')
