@@ -2,6 +2,7 @@ from typing import Callable, Sequence, Tuple
 from .agents.base_agent import BaseAgent
 
 import numpy
+import math
 
 __all__ = [
     "CompositeScenarios",
@@ -18,10 +19,8 @@ class BaseScenario():
         self.rng = numpy.random.RandomState()
         self.seed(seed)
 
-        self.wall = [dict(start_point = (7,2), end_point =(10,1),wall_type='rectangle',velocity=(0,0),thickness=0),
-                     dict(start_point = (7,2), radius=5,wall_type='circle',velocity=(0,0),thickness=0)]
+        self.wall = [dict(start_point = (7,2), end_point =(10,1),wall_type='rec',velocity=(0,0),thickness=0)]
         self.has_wall = False
-        self.dynamic = False
         ## wall should be dict of component to build rectangle wall,
         ## it consists of start_point (s:top-left) and end_point (e:bottom-right)
         ## thickness is only inside wall
@@ -78,6 +77,74 @@ class BaseScenario():
                     if (dx**2 + dy**2) <= agent.radius*agent.radius:
                         return True
         return False
+
+    def search_360_wall(self,agent: BaseAgent):
+        wall_list = []
+        theta_list = []
+        if agent.visible:
+            r = agent.radius
+            ob_r = agent.observe_radius
+            agent_p = (agent.position.x,agent.position.y)
+            for degree in range(0,360,6): # loop for 360 degree
+                theta  = math.pi/180 * degree
+                ## find the point with that degree
+                p_x = (r * math.cos(theta)) + agent_p[0]
+                p_y = (r * math.sin(theta)) + agent_p[1]
+                dy = (p_y - agent_p[1])
+                dx = (p_x - agent_p[0])
+                ## find linear equation
+                if degree==90 or degree ==270:
+                    m=1
+                    c =  (m*p_x)
+                else:
+                    m  = dy / dx
+                    c = p_y - (m*p_x)
+                ## find unit vector for that degree
+                dist_p = (dx**2 +dy**2)**0.5
+                unit_vector = (round(dx/dist_p,4),round(dy/dist_p,4))
+                min_dist = ob_r  ## the point on wall must in observe radius
+                wall_point = [0,0,0,0] ##
+                for w in self.wall:
+                    if w['wall_type'] == 'rectangle':
+                        rec_min=(w['start_point'][0],w['end_point'][1])
+                        rec_max=(w['end_point'][0],w['start_point'][1])
+                        if degree != 90 or degree != 270:
+                            for x in [rec_min[0],rec_max[0]]:
+                                y = x*m+c
+                                if y >= rec_min[1] and y <= rec_max[1]:
+                                    _dx = x - agent_p[0]
+                                    _dy = y - agent_p[1]
+                                    _dist = (_dx**2 +_dy**2)**0.5
+                                    _uv = (round(_dx/_dist,4),round(_dy/_dist,4))
+                                    if _uv == unit_vector:
+                                        if _dist <= min_dist:
+                                            min_dist = _dist
+                                            wall_point[0] = _dx
+                                            wall_point[1] = _dy
+                                            wall_point[2] = w['velocity'][0] - 0
+                                            wall_point[3] = w['velocity'][1] - 0
+                        for y in [rec_min[1],rec_max[1]]:
+                            if m != 0:
+                                if degree != 90 and degree != 270:
+                                    x = (y-c)/m
+                                else:
+                                    x = c
+                                if x >= rec_min[0] and x <= rec_max[0]:
+                                    _dx = x - agent_p[0]
+                                    _dy = y - agent_p[1]
+                                    _dist = (_dx**2 +_dy**2)**0.5
+                                    _uv = (round(_dx/_dist,4),round(_dy/_dist,4))
+                                    if _uv == unit_vector:
+                                        if _dist <= min_dist:
+                                            min_dist = _dist
+                                            wall_point[0] = _dx
+                                            wall_point[1] = _dy
+                                            wall_point[2] = w['velocity'][0] - 0
+                                            wall_point[3] = w['velocity'][1] - 0
+                if wall_point != [0,0,0,0]:
+                    wall_list.append(wall_point)
+                theta_list.append(theta)
+        return wall_list,theta_list
 
     def nearest_wall(self,agent: BaseAgent):
         n = []
@@ -344,23 +411,6 @@ class SquareCrossingScenario(BaseScenario):
         return agent
 
 
-########### Add Wall scenario ############
-class DummyWallScenario(SquareCrossingScenario):
-    def __init__(self, wall=None,wall_type='rectangle',**kwargs):
-        super().__init__(**kwargs)
-        
-        self.wall = wall
-        self.wall_type = wall_type
-        ## wall should be dict of component to build rectangle wall,
-        ## it consists of start_point (s:top-left) and end_point (e:bottom-right)
-        ## EXAMPLE: wall = dict(start_point = (7,2), end_point =(10,1))
-        #############################
-        #...........................#
-        #.......swww................#
-        #.......wwwe................#
-        #...........................#
-        #############################
-
 
 class PredefinedScenario(BaseScenario):
     def __init__(self,
@@ -378,7 +428,6 @@ class PredefinedScenario(BaseScenario):
         agent.position = self.POS[self.counter][0]*self.scale, self.POS[self.counter][1]*self.scale
         agent.goal = self.GOAL[self.counter][0]*self.scale, self.GOAL[self.counter][1]*self.scale
         return agent
-
 
 class CircleCrossing6Scenario(PredefinedScenario):
 
@@ -574,9 +623,9 @@ class StaticWallScenario(BaseScenario):
     def visualize(self,fig,ax):
         import matplotlib.pyplot as plt
 
-        # fig = fig
-        # ax = ax
+        fig = fig
+        ax = ax
         for w in self.wall:
             x1 = numpy.array([w['start_point'][0],w['start_point'][0],w['end_point'][0],w['end_point'][0],w['start_point'][0]])
             y1 = numpy.array([w['end_point'][1],w['start_point'][1],w['start_point'][1],w['end_point'][1],w['end_point'][1]])
-            ax.plot(x1, y1,'r-')
+            plt.plot(x1, y1,'r-')

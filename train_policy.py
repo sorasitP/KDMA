@@ -7,7 +7,7 @@ from rl import utils
 from models.ppo import MultiAgentPPO
 from models.networks import ExpertNetwork
 
-os.environ["CUBLAS_WORKSPACE_CONFIG"]=":16:8"
+os.environ["CUBLAS_WORKSPACE_CONFIG"]=":4096:8"
 
 from env.scenarios import *
 from models.agent import DLAgent
@@ -34,15 +34,21 @@ def env_wrapper(expert=None, evaluate=False):
         expert=expert
         )
     if evaluate:
-        scenario = CircleCrossingScenario(n_agents=20, agent_wrapper=agent_wrapper, min_distance=0.3, radius=4)
+        # scenario = CircleCrossingScenario(n_agents=20, agent_wrapper=agent_wrapper, min_distance=0.3, radius=4)
+        scenario = StaticWallScenario(n_agents=20, agent_wrapper=agent_wrapper, min_distance=0.3, vertical=True, horizontal=False, width=8, height=8, 
+                                      wall=[dict(start_point = (-5,5), end_point =(5,-5),wall_type='rectangle',velocity=(0,0),thickness=0),
+                                            dict(start_point = (-5,0.5), end_point =(1,-0.5),wall_type='rectangle',velocity=(0,0),thickness=0)])
     else:
         kwargs = dict(n_agents=(6, 20), agent_wrapper=agent_wrapper, min_distance=0.3)
-        scenario = CompositeScenarios([
-            CircleCrossingScenario(radius=(4, 6), noise=0.5, **kwargs),
-            SquareCrossingScenario(width=(8, 12), height=(8, 12), vertical=True, horizontal=True, **kwargs),
-            SquareCrossingScenario(width=(8, 12), height=(8, 12), vertical=True, horizontal=False, **kwargs),
-            SquareCrossingScenario(width=(8, 12), height=(8, 12), vertical=False, horizontal=True, **kwargs)
-        ])
+        # scenario = CompositeScenarios([
+        #     CircleCrossingScenario(radius=(4, 6), noise=0.5, **kwargs),
+        #     SquareCrossingScenario(width=(8, 12), height=(8, 12), vertical=True, horizontal=True, **kwargs),
+        #     SquareCrossingScenario(width=(8, 12), height=(8, 12), vertical=True, horizontal=False, **kwargs),
+        #     SquareCrossingScenario(width=(8, 12), height=(8, 12), vertical=False, horizontal=True, **kwargs)
+        # ])
+        scenario = StaticWallScenario(n_agents=(6,20), agent_wrapper=agent_wrapper, min_distance=0.3, vertical=True, horizontal=False, width=8, height=8, 
+                                      wall=[dict(start_point = (-5,5), end_point =(5,-5),wall_type='rectangle',velocity=(0,0),thickness=0),
+                                            dict(start_point = (-5,0.5), end_point =(1,-0.5),wall_type='rectangle',velocity=(0,0),thickness=0)])
     env = Env(scenario=scenario, fps=1/config.STEP_TIME, timeout=config.TIMEOUT, frame_skip=config.FRAME_SKIP)
     return env
 
@@ -99,29 +105,30 @@ def train(seed, rank, hooks=[]):
     done = True
     if settings.workers > 0:
         print("Worker {} starts work.".format(rank))
-    episode = 0
+    episode=0
     while not agent.requests_quit:
+        # print('training...')
         if done:
-            print(f"episode:{episode}, {agent.samples.item()} / {agent.max_samples}")
+            print(f"episode: {episode}, {agent.samples.item()} / {agent.max_samples}")
             episode+=1
             s = env.reset()
         else:
             s = s_
-        a, *args = agent.act(s, True) # action from agent policy
+        a, *args = agent.act(s, True)
         
-        act = [ag.act(ac, env) for ag, ac in zip(env.agents, a)] # rotate velocity and tuning for using in env
+        act = [ag.act(ac, env) for ag, ac in zip(env.agents, a)]
         s_, r, done, info = env.step(act)
         agent.store(s, a, r, s_, done, info, *args)
 
         if agent.needs_update():
-            print('update policy...')
+            # print('update policy..')
             agent.train()
             agent.update()
             agent.eval()
 
 def evaluate(
     seed: int = None,
-    trials: int = 2,
+    trials: int = 10,
     child_processes: Sequence[multiprocessing.context.Process] = None,
     timeout: int = 3600,
     keep_best_checkpoint: bool = True
@@ -141,7 +148,6 @@ def evaluate(
     avg_reward, speed = [], []
     while True:
         if tries < 0:
-            
             last_response_time = time.time()
             ckpt = None
             while not finished:
@@ -150,30 +156,27 @@ def evaluate(
                         ckpt = torch.load(agent.checkpoint_file, map_location=agent.device)
                     except Exception as e:
                         print("Evaluator Error: ", e)
-                    
                     if ckpt:
                         agent.load_state_dict(ckpt)
                         step = agent.global_step.item()
-                        # print('Struck here???',step)
                         if step <= global_step:
                             ckpt = None
                         else:
-                            print('BREK WHY!!!')
                             global_step = step
                             break
                 finished = False
                 if child_processes:
                     if not all(p.is_alive() for p in child_processes):
-                        print('All ChildProcesses has ended...')
+                        print('all child_process end...')
                     finished = not all(p.is_alive() for p in child_processes)
+                    
                 if not finished and timeout and timeout > 0:
                     if time.time() - last_response_time > timeout:
-                        print('Timed out...')
+                        print('timeout end...')
                     finished = time.time() - last_response_time > timeout
-                if not finished: time.sleep(3)
-            if finished:
-                print('Finished Evaluation')
-                break
+                    
+                if not finished: time.sleep(5)
+            if finished: break
             tries = 0
             utils.env_seed(env, seed)
 
@@ -192,10 +195,9 @@ def evaluate(
                 reward[idx].append(r)
                 speed.append((ag.velocity.x**2 + ag.velocity.y**2)**0.5)
                 lifetime += 1
-        print('evaluating...')        
+                
         tries += done
         if done:
-            print(f'tries:{tries} / {trials}')
             arrived += len(info["arrived_agents"])
             collided += len(info["collided_agents"])
             total += len(env.agents)
@@ -205,7 +207,7 @@ def evaluate(
                 for _ in reversed(r[:-1]):
                     rews.append(_ + agent.gamma*rews[-1])
             avg_reward.append(sum(rews)/len(rews))
-        
+            print(f"evaluate episode={tries} / {trials}")
         if tries >= trials:
             success_rate = arrived/total
             collision_rate = collided/total
@@ -230,13 +232,12 @@ def evaluate(
             total, lifetime, arrived, collided = 0, 0, 0, 0
             avg_reward, speed = [], []
             tries = -1
-            # print('WHY!!!',agent.global_step.item())
+
             cache_id = int(samples) // int(5e6)
             if cache_id:
                 cache_file = agent.checkpoint_file+"-{}".format(cache_id)
                 if not os.path.exists(cache_file):
                     torch.save(ckpt, cache_file)
-    # print('Leave Loop')
 
 if __name__ == "__main__":
     if settings.workers > 1:
@@ -260,6 +261,7 @@ if __name__ == "__main__":
                 "gloo", settings.rank, settings.workers,
                 master_addr=settings.master_addr, master_port=settings.master_port
             )
+            print('end.....')
     else:
         processes = []
         torch.multiprocessing.set_start_method("spawn", force=True)
@@ -267,4 +269,3 @@ if __name__ == "__main__":
         p.start()
         processes.append(p)
         evaluate(seed=1+settings.workers, child_processes=processes)
-        print('end.....')

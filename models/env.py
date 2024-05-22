@@ -38,7 +38,7 @@ class Env(DecentralizedMultiAgentEnv):
 
     def reward(self, idx, agent):
         if agent in self.info["collided_agents"]:
-            r = -0.25
+            r = -0.3
             return r
         if agent in self.info["arrived_agents"]:
             r = 1
@@ -52,7 +52,7 @@ class Env(DecentralizedMultiAgentEnv):
         v_pref = agent.preferred_velocity(dt, start=self.position[idx])
         agent.vpref = v_pref
         e0 = ((v_pref[0]-vx)**2+(v_pref[1]-vy)**2)**0.5
-        agent.vr = 0.02*numpy.exp(-0.85*e0)
+        agent.vr = 0.06*numpy.exp(-0.85*e0)
         r += agent.vr
         if hasattr(agent, "expert") and agent.expert:
             a_expert = agent.expert_act(self) # the output of expert is the acceleration
@@ -66,7 +66,7 @@ class Env(DecentralizedMultiAgentEnv):
             else:
                 e1 = ((a_expert[0]-a[0])**2+(a_expert[1]-a[1])**2)**0.5
                 e1 /= self.fps
-            agent.er = 0.08*numpy.exp(-0.85*e1)
+            agent.er = 0.04*numpy.exp(-0.85*e1)
             r += agent.er
         return r
 

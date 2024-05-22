@@ -23,8 +23,6 @@ class DecentralizedMultiAgentEnv():
 
         self.agents: Sequence[BaseAgent] = []
 
-        self.wall = []
-
         self.figure = None
         self.markers = []
         self.trajectories = []
@@ -64,7 +62,7 @@ class DecentralizedMultiAgentEnv():
         self.simulation_steps += 1
         self.info["arrived_agents"].clear()
 
-        for agent, a in zip(self.agents, action): ## tacke action to each agent
+        for agent, a in zip(self.agents, action):
             if a is None:
                 agent.accelerate = 0, 0
                 agent.velocity = 0, 0
@@ -74,14 +72,14 @@ class DecentralizedMultiAgentEnv():
                     agent.velocity.x+agent.accelerate.x/self.fps, \
                     agent.velocity.y+agent.accelerate.y/self.fps
         for _ in range(self.frame_skip):
-            for agent in self.agents: ## move each agent
+            for agent in self.agents:
                 agent.position = \
                     agent.position.x+agent.velocity.x*self.step_time, \
                     agent.position.y+agent.velocity.y*self.step_time
-            for i in range(len(self.agents)): ## check if which agent collides with each other
+            for i in range(len(self.agents)):
                 for j in range(i+1, len(self.agents)):
                     if self.scenario.collide(self.agents[i], self.agents[j]):
-                        self.info["collided_agents"].add(self.agents[i]) ## add agent to collided set
+                        self.info["collided_agents"].add(self.agents[i])
                         self.info["collided_agents"].add(self.agents[j])
                         self.agents[i].velocity = 0., 0.
                         self.agents[j].velocity = 0., 0.
@@ -93,18 +91,18 @@ class DecentralizedMultiAgentEnv():
                         self.info["collided_agents"].add(self.agents[i])
                         self.agents[i].velocity = 0., 0.
 
-            if self.view: ## visualize
+            if self.view:
                 self.render(None if type(self.view) == bool else self.view)
-        for agent in self.agents: ## check which agent moved to goal
+        for agent in self.agents:
             if agent in self.info["collided_agents"]: continue
-            dist2 = (agent.position.x - agent.goal.x)**2 + (agent.position.y - agent.goal.y)**2 # calculate distance to goal
+            dist2 = (agent.position.x - agent.goal.x)**2 + (agent.position.y - agent.goal.y)**2
             if dist2 <= agent.radius*agent.radius:
-                self.info["arrived_agents"].add(agent) ## add agent to arived set
+                self.info["arrived_agents"].add(agent)
         
         obs = self.observe()
         rews = [self.reward(i, agent) for i, agent in enumerate(self.agents)]
         
-        if len(self.info["collided_agents"]) + len(self.info["arrived_agents"]) < len(self.agents): ## check if all agents collided or arrived
+        if len(self.info["collided_agents"]) + len(self.info["arrived_agents"]) < len(self.agents):
             terminal = False
         else:
             terminal = True
@@ -113,7 +111,7 @@ class DecentralizedMultiAgentEnv():
                     terminal = False
                     break
         
-        if not terminal and self.timeout and self.simulation_steps >= self.timeout: ## terminate if over time limit
+        if not terminal and self.timeout and self.simulation_steps >= self.timeout:
             self.info["TimeLimit.truncated"] = True
             terminal = True
 
@@ -187,13 +185,11 @@ class DecentralizedMultiAgentEnv():
             fig = self.figure.figure
             ax = self.figure.axes
 
-
-        fig.canvas.flush_events()
-
         '''render wall'''
         if self.scenario.has_wall:
             self.scenario.visualize(fig,ax)
 
+        fig.canvas.flush_events()
 
         if len(self.markers) < len(self.agents):
             n = len(self.agents) - len(self.markers)
