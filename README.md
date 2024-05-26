@@ -7,8 +7,8 @@ For dependencies and how to use multi-agent navigation framework, you can follow
 
 ## Obstacle Environment
 We inherit corridor scenario from KDMA framework where agents randomly spawn in both side of corridor and their goal is in opposite side. We add obstacle between agent's spawn point and their goal, The agents must navigate around obstacles instead of run straight ahead to goal and also avoid the other agents as the same time.
-**INSERT GIF**
 
+<img src="gallery/ex3_set2.gif" alt="drawing" width="325"/>
 
 ## Code Usage
 

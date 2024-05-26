@@ -1,10 +1,13 @@
 from typing import Sequence
 import numpy
 import torch
+import sys
+
 
 from env.agents.base_agent import BaseAgent
 from .networks import Policy
-from ..config import ONLY_NEAREST,OBSERVED_POINTS
+sys.path.append("..")
+from config import ONLY_NEAREST,OBSERVED_POINTS
 
 class DLAgent(BaseAgent):
 
