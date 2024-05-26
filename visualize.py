@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--ckpt", type=str, default='pretrain/policy/ckpt') #default=None
 parser.add_argument("--max_trials", type=int, default=10)
 parser.add_argument("--scene", type=str, default="24-static_wall",
-    choices=["6-circle", "12-circle", "20-circle", "24-circle", "20-corridor", "24-corridor", "20-square", "24-square","24-static_wall","24-dynamic_wall"]
+    choices=["6-circle", "12-circle", "20-circle", "24-circle", "20-corridor", "24-corridor", "20-square", "24-square","20-static_wall","20-static_wall_circle","20-static_wall_splited"]
 )
 parser.add_argument("--device", type=str, default=None)
 parser.add_argument("--view", type=str, default="True")
@@ -53,7 +53,7 @@ def env_wrapper(model, expert=None):
             SquareCrossingScenario(n_agents=24, agent_wrapper=agent_wrapper, min_distance=0.3, vertical=True, horizontal=False, width=8, height=8),
             SquareCrossingScenario(n_agents=24, agent_wrapper=agent_wrapper, min_distance=0.3, vertical=False, horizontal=True, width=8, height=8)
         ])    
-    elif settings.scene == "24-static_wall":
+    elif settings.scene == "20-static_wall":
         scenario = StaticWallScenario(n_agents=20, agent_wrapper=agent_wrapper, min_distance=0.3, vertical=True, horizontal=False, width=8, height=8, 
                                       wall=[dict(start_point = (-5,5), end_point =(5,-5),wall_type='rectangle',velocity=(0,0),thickness=0),
                                             dict(start_point = (-5,0.5), end_point =(1,-0.5),wall_type='rectangle',velocity=(0,0),thickness=0)]) 
@@ -61,7 +61,16 @@ def env_wrapper(model, expert=None):
     #     scenario = DynamicWallScenario(n_agents=20, agent_wrapper=agent_wrapper, min_distance=0.3, vertical=True, horizontal=False, width=8, height=8,
     #                                    wall=[dict(start_point = (-5,5), end_point =(5,-5),wall_type='rectangle',velocity=(1,0),thickness=0),
     #                                         dict(start_point = (-5,0.5), end_point =(1,-0.5),wall_type='rectangle',velocity=(10,0),thickness=0)])
-              
+    elif settings.scene == "20-static_wall_circle":
+        scenario = StaticWallCircleScenario(n_agents=20, agent_wrapper=agent_wrapper, min_distance=0.3, radius=4, 
+                                            wall=[dict(start_point = (-0.5,0.5), end_point =(0.5,-0.5),wall_type='rectangle',velocity=(0,0),thickness=0)])           
+    elif settings.scene == "20-static_wall_splited":
+        scenario = StaticWallScenario(n_agents=20, agent_wrapper=agent_wrapper, min_distance=0.3, vertical=True, horizontal=False, width=8, height=8, 
+                                wall=[dict(start_point = (-5,5), end_point =(5,-5),wall_type='rectangle',velocity=(0,0),thickness=0),
+                                    dict(start_point = (-4,0.5), end_point =(-2,-0.5),wall_type='rectangle',velocity=(0,0),thickness=0),
+                                    dict(start_point = (-1,0.5), end_point =(1,-0.5),wall_type='rectangle',velocity=(0,0),thickness=0),
+                                    dict(start_point = (2,0.5), end_point =(4,-0.5),wall_type='rectangle',velocity=(0,0),thickness=0)])
+          
     else:
         raise ValueError("Unrecognized scene: {}".format(settings.scene))
 

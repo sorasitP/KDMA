@@ -11,7 +11,8 @@ __all__ = [
 
     "CircleCrossing6Scenario",
     "CircleCrossing12Scenario",
-    "StaticWallScenario"
+    "StaticWallScenario",
+    "StaticWallCircleScenario"
 ]
 
 class BaseScenario():
@@ -625,6 +626,84 @@ class StaticWallScenario(BaseScenario):
 
         # fig = fig
         # ax = ax
+        for w in self.wall:
+            x1 = numpy.array([w['start_point'][0],w['start_point'][0],w['end_point'][0],w['end_point'][0],w['start_point'][0]])
+            y1 = numpy.array([w['end_point'][1],w['start_point'][1],w['start_point'][1],w['end_point'][1],w['end_point'][1]])
+            ax.plot(x1, y1,'r-')
+
+class StaticWallCircleScenario(BaseScenario):
+    def __init__(self,
+        n_agents: int or Tuple[int, int],
+        radius: float or Tuple[float, float],
+        agent_wrapper: Callable[[], BaseAgent],
+        wall: list,
+        noise: float = 0,
+        min_distance: float = 0,
+        seed: int = None,
+    ):
+        
+        ## wall should be dict of component to build rectangle wall,
+        ## it consists of start_point (s:top-left) and end_point (e:bottom-right)
+        ## EXAMPLE: wall = dict(start_point = (7,2), end_point =(10,1))
+        #############################
+        #...........................#
+        #.......swww................#
+        #.......wwwe................#
+        #...........................#
+        #############################
+
+        self.n_agents = n_agents
+        self.radius = radius
+        self.agent_wrapper = agent_wrapper
+        self.min_distance = min_distance
+        self.noise = noise
+        super().__init__(seed)
+
+        self.has_wall = True
+        self.dynamic = False
+        self.start = False
+        self.wall = wall
+
+    def __iter__(self):
+        if hasattr(self.n_agents, "__len__"):
+            self._n_agents = self.rng.randint(self.n_agents[0], self.n_agents[1])
+        else:
+            self._n_agents = self.n_agents
+        if hasattr(self.radius, "__len__"):
+            self._radius = self.rng.random()*(self.radius[1]-self.radius[0]) + self.radius[0]
+        else:
+            self._radius = self.radius
+        return super().__iter__()
+
+
+    def spawn(self):
+        if self.counter >= self._n_agents:
+            raise StopIteration
+
+        agent = self.agent_wrapper()
+        r = agent.radius
+        agent.radius += self.min_distance
+
+        while True:
+            a = self.rng.random() * 2*numpy.pi
+            agent.position = numpy.cos(a)*self._radius, numpy.sin(a)*self._radius
+            if self.noise:
+                agent.position = (
+                    agent.position.x + (self.rng.random()-0.5)*2*self.noise,
+                    agent.position.y + (self.rng.random()-0.5)*2*self.noise
+                )
+            if self.placeable(agent): break
+        agent.goal = -agent.position.x, -agent.position.y
+        # agent.velocity = agent.preferred_velocity(0.12)
+        agent.radius = r
+        return agent
+
+    
+    def visualize(self,fig,ax):
+        import matplotlib.pyplot as plt
+
+        fig = fig
+        ax = ax
         for w in self.wall:
             x1 = numpy.array([w['start_point'][0],w['start_point'][0],w['end_point'][0],w['end_point'][0],w['start_point'][0]])
             y1 = numpy.array([w['end_point'][1],w['start_point'][1],w['start_point'][1],w['end_point'][1],w['end_point'][1]])
